@@ -36,7 +36,8 @@ func main() {
 		if info.IsDir() {
 			return nil
 		}
-		if files != nil && !files[info.Name()] {
+		if len(files) > 0 && !files[info.Name()] {
+			fmt.Println(files)
 			return nil
 		}
 		workXlsx(path, info)
