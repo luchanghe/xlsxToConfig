@@ -21,6 +21,12 @@ func main() {
 		}
 	}()
 	c := Config.GetConfig()
+	files := make(map[string]bool)
+	if c.Files != "" {
+		for _, s := range strings.Split(c.Files, ",") {
+			files[s] = true
+		}
+	}
 	// 调用 filepath.Walk() 函数来遍历目录
 	err := filepath.Walk(c.Input, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
@@ -30,22 +36,10 @@ func main() {
 		if info.IsDir() {
 			return nil
 		}
-		fileSlice := strings.Split(info.Name(), ".")
-		if len(fileSlice) != 2 {
+		if files != nil && !files[info.Name()] {
 			return nil
 		}
-		if fileSlice[1] != "xlsx" {
-			return nil
-		}
-		name := fileSlice[0]
-		xlFile, err := xlsx.OpenFile(path)
-		if err != nil {
-			panic(err)
-		}
-		bookSrt := book.NewBook(name)
-		bookSrt.IncludeExcel(xlFile)
-		bookSrt.WriteToJson()
-		bookSrt.WriteToPhp()
+		workXlsx(path, info)
 		return nil
 	})
 	// 错误处理
@@ -53,4 +47,24 @@ func main() {
 		panic(err)
 	}
 
+}
+
+func workXlsx(path string, info os.FileInfo) {
+	fileSlice := strings.Split(info.Name(), ".")
+	if len(fileSlice) != 2 {
+		return
+	}
+	if fileSlice[1] != "xlsx" {
+		return
+	}
+	name := fileSlice[0]
+	xlFile, err := xlsx.OpenFile(path)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println("正在处理", info.Name())
+	bookSrt := book.NewBook(name)
+	bookSrt.IncludeExcel(xlFile)
+	bookSrt.WriteToJson()
+	bookSrt.WriteToPhp()
 }

@@ -124,7 +124,6 @@ func create(table map[string]*xlsx.Sheet, sheet *xlsx.Sheet, relationKey string,
 	for i := 0; i < len(heads); i++ {
 		heads[i].cnName = sheet.Rows[1].Cells[i].String()
 	}
-
 	//xlsx第三行获取字段类型
 	for i := 0; i < len(heads); i++ {
 		heads[i].fType = sheet.Rows[2].Cells[i].String()
@@ -146,9 +145,11 @@ func create(table map[string]*xlsx.Sheet, sheet *xlsx.Sheet, relationKey string,
 			}
 		}
 	}
-
 	//循环后面的每一行
 	for _, row := range sheet.Rows[3:] {
+		if len(row.Cells) == 0 {
+			break
+		}
 		if relationIndex != -1 && row.Cells[relationIndex].String() != relationVal {
 			continue
 		}

@@ -7,6 +7,7 @@ import (
 type Config struct {
 	Input  string
 	OutPut string
+	Files  string
 }
 
 var confTemp *Config
@@ -19,6 +20,7 @@ func GetConfig() *Config {
 	// 使用 flag 包来定义命令行参数
 	flag.StringVar(&c.OutPut, "o", "", "./")
 	flag.StringVar(&c.Input, "i", "", "./")
+	flag.StringVar(&c.Files, "f", "", "")
 	// 解析命令行参数
 	flag.Parse()
 	// 获取字符串的长度
