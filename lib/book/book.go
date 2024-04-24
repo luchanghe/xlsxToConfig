@@ -2,6 +2,7 @@ package book
 
 import (
 	Config "awesomeProject/lib/config"
+	"encoding/json"
 	"fmt"
 	"github.com/iancoleman/orderedmap"
 	"github.com/tealeg/xlsx"
@@ -61,6 +62,26 @@ func createDataMap(data *PageData) *orderedmap.OrderedMap {
 				bodyMap.Set(head.enName, createDataMap(body.data.(*PageData)))
 			case "int", "string", "float":
 				bodyMap.Set(head.enName, body.data)
+			case "json":
+				if len(body.data.(string)) == 0 {
+					body.data = "{}"
+				}
+
+				if body.data.(string)[0] == '[' && body.data.(string)[len(body.data.(string))-1] == ']' {
+					var jsonArray []interface{}
+					err := json.Unmarshal([]byte(body.data.(string)), &jsonArray)
+					if err != nil {
+						panic(fmt.Sprintf("json解析失败,%s=>%s::%v\n", data.name, head.enName, err))
+					}
+					bodyMap.Set(head.enName, jsonArray)
+				} else {
+					jsonTempMap := orderedmap.New()
+					err := jsonTempMap.UnmarshalJSON([]byte(body.data.(string)))
+					if err != nil {
+						panic(fmt.Sprintf("json解析失败,%s=>%s::%v\n", data.name, head.enName, err))
+					}
+					bodyMap.Set(head.enName, jsonTempMap)
+				}
 			case "id":
 				s, err := strconv.Atoi(body.data.(string))
 				if err == nil {
@@ -149,6 +170,8 @@ func create(table map[string]*xlsx.Sheet, sheet *xlsx.Sheet, relationKey string,
 				fieldVal = ceilString
 			case "id":
 				fieldVal = ceilString
+			case "json":
+				fieldVal = ceilString
 			case "float":
 				temp, _ := strconv.ParseFloat(ceilString, 64)
 				fieldVal = temp
@@ -168,27 +191,21 @@ func create(table map[string]*xlsx.Sheet, sheet *xlsx.Sheet, relationKey string,
 
 func (b *Book) write(d []byte, s string) {
 	c := Config.GetConfig()
-	dir := c.OutPut + "/" + s + "/"
+	dir := c.OutPut + s + "/"
 	_, err := os.Stat(dir)
 	if err != nil {
 		// 如果目录不存在，则创建它
 		if os.IsNotExist(err) {
-			err := os.MkdirAll(dir, 0755)
-			if err != nil {
-				fmt.Printf("创建目录出错: %v\n", err)
-				return
+			err2 := os.MkdirAll(dir, 0755)
+			if err2 != nil {
+				panic(fmt.Sprintf("创建目录出错: %v\n", err2))
 			}
-			return
 		}
-		// 其他错误，如权限不足等
-		fmt.Printf("访问目录时出错: %v\n", err)
-		return
 	}
 	fileLink := dir + b.name + "." + s
 	file, err := os.Create(fileLink)
 	if err != nil {
-		fmt.Println("创建文件失败:", err)
-		return
+		panic(fmt.Sprintf("创建文件失败:%v\n", err))
 	}
 	defer func(file *os.File) {
 		err := file.Close()
@@ -199,7 +216,6 @@ func (b *Book) write(d []byte, s string) {
 	// 写入数据
 	_, err = file.Write(d)
 	if err != nil {
-		fmt.Println("写入文件失败:", err)
-		return
+		panic(fmt.Sprintf("写入文件失败:%v\n", err))
 	}
 }

@@ -8,8 +8,6 @@ import (
 	"strings"
 )
 
-type id string
-
 func (b *Book) WriteToPhp() {
 	// 将Go map 转换为PHP数组的字符串形式
 	phpArray := goMapToPHPArray(b.dataMap)
@@ -47,6 +45,24 @@ func goValueToPHPValue(value interface{}) string {
 		return fmt.Sprintf("%v", v)
 	case *orderedmap.OrderedMap:
 		return goMapToPHPArray(v)
+	case []interface{}:
+		var builder strings.Builder
+		builder.WriteString("array(")
+		for _, item := range v {
+			s := fmt.Sprintf("%v", item)
+			if _, err := strconv.Atoi(s); err == nil {
+				builder.WriteString(s)
+				builder.WriteString(",")
+			} else {
+				builder.WriteString("\"")
+				builder.WriteString(s)
+				builder.WriteString("\"")
+				builder.WriteString(",")
+			}
+
+		}
+		builder.WriteString(")")
+		return builder.String()
 	default:
 		return "" // 不支持的类型，返回空字符串
 	}
