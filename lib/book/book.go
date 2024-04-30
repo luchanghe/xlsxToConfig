@@ -47,7 +47,7 @@ func (b *Book) IncludeExcel(file *xlsx.File) {
 		fileTable[sheet.Name] = sheet
 	}
 	file.Sheets[0].Rows[2].Cells[0].Value = "id"
-	b.dataMap = createDataMap(create(fileTable, file.Sheets[0], "", ""))
+	b.dataMap = createDataMap(create(fileTable, file.Sheets[0], "", "", make(map[string]*PageData)))
 }
 
 func createDataMap(data *PageData) *orderedmap.OrderedMap {
@@ -107,7 +107,7 @@ func createDataMap(data *PageData) *orderedmap.OrderedMap {
 	return jsonMap
 }
 
-func create(table map[string]*xlsx.Sheet, sheet *xlsx.Sheet, relationKey string, relationVal string) *PageData {
+func create(table map[string]*xlsx.Sheet, sheet *xlsx.Sheet, relationKey string, relationVal string, relationCache map[string]*PageData) *PageData {
 	relationIndex := -1
 	data := &PageData{name: sheet.Name}
 	var heads []*Head
@@ -146,12 +146,10 @@ func create(table map[string]*xlsx.Sheet, sheet *xlsx.Sheet, relationKey string,
 		}
 	}
 	//循环后面的每一行
+	cache := make(map[int]map[string]*PageData)
 	for _, row := range sheet.Rows[3:] {
 		if len(row.Cells) == 0 {
 			break
-		}
-		if relationIndex != -1 && row.Cells[relationIndex].String() != relationVal {
-			continue
 		}
 		//基于头标循环每一格
 		rowTemp := &BodyRow{}
@@ -165,7 +163,17 @@ func create(table map[string]*xlsx.Sheet, sheet *xlsx.Sheet, relationKey string,
 			}
 			switch heads[i].fType {
 			case "array":
-				temp := create(table, table[heads[i].relationSheetName], heads[i].relationKey, row.Cells[0].String())
+				var temp *PageData
+				if cache[i] != nil {
+					if cache[i][row.Cells[0].String()] != nil {
+						temp = cache[i][row.Cells[0].String()]
+					} else {
+						temp = &PageData{}
+					}
+				} else {
+					cache[i] = make(map[string]*PageData)
+					temp = create(table, table[heads[i].relationSheetName], heads[i].relationKey, row.Cells[0].String(), cache[i])
+				}
 				fieldVal = temp
 			case "string":
 				fieldVal = ceilString
@@ -185,14 +193,21 @@ func create(table map[string]*xlsx.Sheet, sheet *xlsx.Sheet, relationKey string,
 				data: fieldVal,
 			})
 		}
-		data.bodyRows = append(data.bodyRows, rowTemp)
+		if relationIndex != -1 && row.Cells[relationIndex].String() != relationVal {
+			if relationCache[row.Cells[relationIndex].String()] == nil {
+				relationCache[row.Cells[relationIndex].String()] = &PageData{name: sheet.Name}
+			}
+			relationCache[row.Cells[relationIndex].String()].bodyRows = append(relationCache[row.Cells[relationIndex].String()].bodyRows, rowTemp)
+		} else {
+			data.bodyRows = append(data.bodyRows, rowTemp)
+		}
 	}
 	return data
 }
 
 func (b *Book) write(d []byte, s string) {
 	c := Config.GetConfig()
-	dir := c.OutPut + s + "/"
+	dir := fmt.Sprint(c.OutPut, s, "/")
 	_, err := os.Stat(dir)
 	if err != nil {
 		// 如果目录不存在，则创建它

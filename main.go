@@ -37,7 +37,6 @@ func main() {
 			return nil
 		}
 		if len(files) > 0 && !files[info.Name()] {
-			fmt.Println(files)
 			return nil
 		}
 		workXlsx(path, info)
